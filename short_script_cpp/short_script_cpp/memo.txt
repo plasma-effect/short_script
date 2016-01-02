@@ -1,0 +1,26 @@
+def func x y z
+let p + x y
+let q * y z
+let r - q p
+return r
+
+def func2 i
+if = i 0
+ return 1
+else
+ return func2 - i 1
+
+def func3 n
+let v 1
+for i 1 n
+ let v * v n
+next
+return v
+
+def main
+let x func2 5
+println x
+return
+
+let val evals...
+grobal
