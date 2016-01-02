@@ -199,8 +199,8 @@ Ts型の引数はそれぞれshort_scriptの関数の仮引数となる。Func�
 }
 ```
 #その他雑多なこと
--script_runner型のコンストラクタの引数はストリーム型(ソースコード用)とdictionary< std::string, script_command>型(コマンド用)で
-共に右辺値参照。
--script_runner::main関数の引数がエントリーポイントとなり、
-第2引数にargc、第3引数にargvを指定してやるとargvが順にエントリーポイントの引数に渡されるが指定されなければ0が渡される
--配列やリスト構造はない。
+・script_runner型のコンストラクタの引数はストリーム型(ソースコード用)とdictionary< std::string, script_command>型(コマンド用)で
+共に右辺値参照。  
+・script_runner::main関数の引数がエントリーポイントとなり、
+第2引数にargc、第3引数にargvを指定してやるとargvが順にエントリーポイントの引数に渡されるが指定されなければ0が渡される  
+・配列やリスト構造はない。
