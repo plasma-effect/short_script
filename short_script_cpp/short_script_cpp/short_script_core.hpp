@@ -274,7 +274,7 @@ namespace short_script_cpp
 	{
 		if (std::regex_match(str, std::basic_regex<char>(R"(-?\d+)")))
 			return boost::lexical_cast<int>(str);
-		if (std::regex_match(str, std::basic_regex<char>(R"(-?\d*.\d*)")))
+		if (std::regex_match(str, std::basic_regex<char>(R"([+-]?((\d*.\d+)|(\d+.\d*))|(\d+[eE][-+]\d+))")))
 			return boost::lexical_cast<double>(str);
 		if (std::regex_match(str, std::basic_regex<char>(R"(\".+\")")))
 			return str.substr(1, str.size() - 2);

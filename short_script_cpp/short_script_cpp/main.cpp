@@ -11,19 +11,14 @@ int main(int argc,char const* argv[])
 	try {
 #else
 	std::stringstream ss{
-		R"(def func
-grobal x 1
-return
-
-def func
-grobal x + x 1
-return
+		R"(def fact n
+if = n 0
+ return 1
+else
+ return * n fact - n 1
 
 def main
-func
-println x
-func2
-println x
+println fact 6
 return)" };
 #endif
 	auto coms = get_default_command();
