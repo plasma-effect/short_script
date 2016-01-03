@@ -95,14 +95,14 @@ ifの中身がtrueならその直後からelseもしくはelifまで、そうで
 endifでif文は終了する。
 ##変数の寿命について
 letによる変数はその関数内でのみ使える。  
-関数を超えた変数を使う場合はgrobalを使う。
+関数を超えた変数を使う場合はglobalを使う。
 ```
 def func
-grobal x 1
+global x 1
 return
 
 def func2
-grobal x + x 1
+global x + x 1
 return
 
 def main

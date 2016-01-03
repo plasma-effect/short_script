@@ -566,12 +566,12 @@ namespace short_script_cpp
 	struct script_runner
 	{
 		std::vector<string_tree> code;
-		dictionary<std::string, value_type> grobal;
+		dictionary<std::string, value_type> global;
 		dictionary<std::string, script_command> commands;
 		
 		template<class Stream>
 		script_runner(Stream&& ss, dictionary<std::string, script_command>&& default_command) :
-			code{}, grobal{}, commands(std::move(default_command))
+			code{}, global{}, commands(std::move(default_command))
 		{
 			std::string str;
 			while (std::getline(ss, str))
@@ -614,7 +614,7 @@ namespace short_script_cpp
 			{
 				auto lit = literal_check(*name);
 				auto loc = dictionary_search(local, *name);
-				auto gro = dictionary_search(grobal, *name);
+				auto gro = dictionary_search(global, *name);
 				auto fun = dictionary_search(commands, *name);
 				return lit ? *lit : loc ? *loc : gro ? *gro : (fun && (*fun).size() == 0) ? fun->operator()(std::vector<value_type>{}, line) :
 					throw detail::make_exception<std::domain_error>(R"(value name "%2%" was not found)", line, *name);
@@ -664,10 +664,10 @@ namespace short_script_cpp
 						value_eval(tree(std::vector<string_tree>(std::next(std::begin(svec), 2), std::end(svec))), local, line));
 					continue;
 				}
-				else if (com == "grobal")
+				else if (com == "global")
 				{
-					if (svec.size() < 3)throw detail::make_exception<std::domain_error>(R"(grobal command error)", line);
-					dictionary_add(grobal,
+					if (svec.size() < 3)throw detail::make_exception<std::domain_error>(R"(global command error)", line);
+					dictionary_add(global,
 						detail::optional_value(get_atomic(svec[1]), detail::make_exception<std::invalid_argument>(R"(invalid value name)", line)),
 						value_eval(tree(std::vector<string_tree>(std::next(std::begin(svec), 2), std::end(svec))), local, line));
 					continue;
