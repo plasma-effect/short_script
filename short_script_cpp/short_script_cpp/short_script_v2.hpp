@@ -1,6 +1,10 @@
 #pragma once
 
-#include<plasma_adt/algebraic_data_type.hpp>
+#ifndef WANDBOX_TEST
+#include<plasma_adt/generic_data_type.hpp>
+#else
+#include"generic_data_type.hpp"
+#endif
 
 #include<iostream>
 #include<regex>
@@ -8,23 +12,28 @@
 #include<stack>
 #include<algorithm>
 #include<utility>
+#include<typeinfo>
+#include<typeindex>
+#include<tuple>
 
 #include<boost/optional.hpp>
 #include<boost/variant.hpp>
 #include<boost/any.hpp>
 #include<boost/lexical_cast.hpp>
 #include<boost/format.hpp>
+#include<boost/range/adaptors.hpp>
 
 
 namespace short_script_v2
 {
-	struct script_runner;
-	struct system_command;
-	struct static_command;
-	struct script_command;
-	typedef boost::any value_type;
-	typedef boost::variant<int, double, std::string, bool> const_value_type;
+	using namespace generic_adt;
+	using namespace place_holder;
+
+	typedef unsigned int column_t;
+	typedef unsigned int line_t;
 	typedef unsigned int count_t;
+	typedef std::string filename_t;
+	template<class Type>using vector_iterator = typename std::vector<Type>::iterator;
 
 	namespace utility
 	{
@@ -104,794 +113,450 @@ namespace short_script_v2
 					,args...).str());
 		}
 
-		
-		inline const_value_type translate_to_const(value_type const& value)
+		template<class Iterator>struct iterator_range_t
 		{
-			if (value.type() == typeid(int))
-				return boost::any_cast<int>(value);
-			if (value.type() == typeid(double))
-				return boost::any_cast<double>(value);
-			if (value.type() == typeid(std::string))
-				return boost::any_cast<std::string>(value);
-			if (value.type() == typeid(bool))
-				return boost::any_cast<bool>(value);
-			throw std::domain_error("type error");
-		}
-		inline value_type translate_to_runtime(const_value_type const& value)
-		{
-			return boost::apply_visitor([](auto const& v) {return value_type(v);}, value);
-		}
-
-		template<class T>T get_and_pop(std::stack<T>& s)
-		{
-			auto ret = s.top();
-			s.pop();
-			return ret;
-		}
-	}
-	inline value_type run(script_runner& runner, count_t line, utility::dictionary<std::string, value_type>& local);
-
-	//define part
-	namespace syntax_tree
-	{
-		using namespace plasma_adt;
-		typedef std::string::const_iterator string_iterator;
-		struct token_tree :data_type_base<token_tree,
-			tuple<std::vector<token_tree>, count_t>,
-			tuple<std::string, count_t>
-		>
-		{
-			token_tree(data_type_base const& d) :data_type_base(d) {}
+			Iterator first;
+			Iterator last;
+			Iterator begin()const
+			{
+				return first;
+			}
+			Iterator end()const
+			{
+				return last;
+			}
 		};
-		namespace
+		template<class Iterator>iterator_range_t<Iterator> iterator_range(Iterator first, Iterator last)
 		{
-			const auto TokenTree = token_tree::instance_function<0>();
-			const auto TokenString = token_tree::instance_function<1>();
-		}
-		struct expression : data_type_base<expression,
-			tuple<int, count_t>,//Integer
-			tuple<double, count_t>,//Double
-			tuple<std::string, count_t>,//String
-			tuple<bool, count_t>,//Boolean
-			tuple<std::reference_wrapper<script_command>, std::vector<expression>, count_t>,//ScriptCommand
-			tuple<std::reference_wrapper<static_command>, std::vector<expression>, count_t>,//StaticCommand
-			tuple<std::string, count_t>//Value
-		>
-		{
-			expression(data_type_base const& d) :data_type_base(d) {}
-		};
-		namespace 
-		{
-			const auto Integer = expression::instance_function<0>();
-			const auto Double = expression::instance_function<1>();
-			const auto String = expression::instance_function<2>();
-			const auto Boolean = expression::instance_function<3>();
-			const auto ScriptCommand = expression::instance_function<4>();
-			const auto StaticCommand = expression::instance_function<5>();
-			const auto Value = expression::instance_function<6>();
-		}
-		struct syntax :data_type_base<syntax,
-			tuple<std::string, expression>,//Let
-			tuple<std::string, expression, expression, expression>,//For
-			void,//Next
-			tuple<expression>,//While
-			void,//Loop
-			tuple<expression>,//If
-			tuple<expression>,//Elif
-			void,//Else
-			void,//Endif
-			tuple<expression>,//Return
-			void,//Null
-			tuple<expression>>//Expr
-		{
-			syntax(data_type_base const&d) :data_type_base(d) {}
-		};
-		namespace
-		{
-			const auto Let = syntax::instance_function<0>();
-			const auto For = syntax::instance_function<1>();
-			const auto Next = syntax::instance_function<2>();
-			const auto While = syntax::instance_function<3>();
-			const auto Loop = syntax::instance_function<4>();
-			const auto If = syntax::instance_function<5>();
-			const auto Elif = syntax::instance_function<6>();
-			const auto Else = syntax::instance_function<7>();
-			const auto Endif = syntax::instance_function<8>();
-			const auto Return = syntax::instance_function<9>();
-			const auto Null = syntax::instance_function<10>();
-			const auto Expr = syntax::instance_function<11>();
+			return iterator_range_t<Iterator>{first, last};
 		}
 	}
 
-	struct script_runner
+	namespace token_traits
 	{
-		std::vector<syntax_tree::syntax> code;
-		utility::dictionary<std::string, static_command> static_commands;
-		utility::dictionary<std::string, script_command> script_commands;
-		utility::dictionary<std::string, value_type> global_values;
-		std::string filename;
-	};
-
-	struct system_command
-	{
-		std::vector<std::string> arguments;
-		std::function<script_runner&(script_runner&, utility::dictionary<std::string, const_value_type>&&, count_t)> func;
-		script_runner& operator()(script_runner& runner, std::vector<const_value_type> val, count_t line)
-		{
-			utility::dictionary<std::string, const_value_type> vals;
-			for (std::size_t i = 0;i < arguments.size();++i)
-			{
-				utility::dictionary_add(vals, utility::at(arguments, i), utility::at(val, i));
-			}
-			return func(runner, std::move(vals), line);
-		}
-		std::size_t size()const
-		{
-			return arguments.size();
-		}
-	};
-	
-	struct static_command
-	{
-		std::vector<std::string> arguments;
-		std::function<const_value_type(script_runner&, utility::dictionary<std::string, const_value_type>&&, count_t, count_t)> func;
-		const_value_type operator()(script_runner& runner, std::vector<const_value_type> val, count_t line, count_t column)
-		{
-			utility::dictionary<std::string, const_value_type> vals;
-			for (std::size_t i = 0;i < arguments.size();++i)
-			{
-				utility::dictionary_add(vals, utility::at(arguments, i), utility::at(val, i));
-			}
-			return func(runner, std::move(vals), line, column);
-		}
-		std::size_t size()const
-		{
-			return arguments.size();
-		}
-	};
-	
-	struct script_command
-	{
-		std::vector<std::string> arguments;
-		std::function<value_type(script_runner&, utility::dictionary<std::string, value_type>&&, count_t, count_t)> func;
-		value_type operator()(script_runner& runner, std::vector<value_type> val, count_t line, count_t column)
-		{
-			utility::dictionary<std::string, value_type> vals;
-			for (std::size_t i = 0;i < arguments.size();++i)
-			{
-				utility::dictionary_add(vals, utility::at(arguments, i), utility::at(val, i));
-			}
-			return func(runner, std::move(vals), line, column);
-		}
-		std::size_t size()const
-		{
-			return arguments.size();
-		}
-	};
-
-	namespace command_traits
-	{
-		template<class T>struct named_argument
-		{
-			std::string name;
-		};
-		template<class T>named_argument<T> make_named_argument(std::string name)
-		{
-			return named_argument<T>{name};
-		}
-		
+		struct token_tree_base :generic_data_type<token_tree_base,
+			tuple<std::string, column_t>, 
+			std::vector<token_tree_base>> {};
+		const auto Token = token_tree_base::instance_function<0>();
+		const auto Tree = token_tree_base::instance_function<1>();
+		const auto make_token = Token(type_tag<std::string>{});
+		const auto make_tree = Tree(type_tag<std::string>{});
+		typedef std::shared_ptr<token_tree_base::value_type<std::string>> token_tree;
 		namespace detail
 		{
-			template<class T> T get_argument(
-				script_runner& runner,
-				utility::dictionary<std::string, value_type>const& vals,
-				named_argument<T> named, count_t line, count_t column)
+			token_tree make_token_tree_impl(
+				std::string::iterator const& base,
+				std::string::iterator& first,
+				std::string::iterator const& last,
+				std::string const& filename,
+				line_t line,
+				bool string_flag = false)
 			{
-				if (auto v = utility::dictionary_search(vals, named.name))
+				if (string_flag)
 				{
-					auto const& u = *v;
-					return u.type() == typeid(T) ? boost::any_cast<T>(u) : throw utility::make_exception<std::invalid_argument>("function argument type error", runner.filename, line, column);
-				}
-				throw utility::make_exception<std::domain_error>(R"(internal script error(report to this app publisher))", runner.filename, line, column);
-			}
-
-			template<class T> T get_argument(
-				script_runner& runner,
-				utility::dictionary<std::string, const_value_type>const& vals,
-				named_argument<T> named, count_t line, count_t column)
-			{
-				if (auto v = utility::dictionary_search(vals, named.name))
-				{
-					auto const& u = *v;
-					return u.type() == typeid(T) ? boost::get<T>(u) : throw utility::make_exception<std::invalid_argument>("function argument type error", runner.filename, line, column);
-				}
-				throw utility::make_exception<std::domain_error>(R"(internal script error(report to this app publisher))", runner.filename, line, column);
-			}
-
-			template<class Return, class... Args>
-			std::function<value_type(script_runner&, utility::dictionary<std::string, value_type>&&, count_t, count_t)>
-				make_script_function(std::function<Return(script_runner&, count_t, count_t, Args...)> func, named_argument<Args>const&... named)
-			{
-				return [=](script_runner& runner, utility::dictionary<std::string, value_type>&& val, count_t line, count_t column)
-				{
-					return value_type(func(runner, line, column, get_argument(runner, val, named, line, column)...));
-				};
-			}
-
-			template<class Return, class... Args>
-			std::function<const_value_type(script_runner&, utility::dictionary<std::string, const_value_type>&&, count_t, count_t)>
-				make_static_function(std::function<Return(script_runner&, count_t, count_t, Args...)> func, named_argument<Args>const&... named)
-			{
-				return [=](script_runner& runner, utility::dictionary<std::string, const_value_type>&& val, count_t line, count_t column)
-				{
-					return const_value_type(func(runner, line, column, get_argument(runner, val, named, line, column)...));
-				};
-			}
-		}
-		template<class Return,class Func, class... Args>static_command make_static_command(
-			Func func, 
-			named_argument<Args> const&... args)
-		{
-			return static_command{ 
-				std::vector<std::string>{args.name...}, 
-				detail::make_static_function(
-					static_cast<std::function<Return(script_runner&, count_t, count_t, Args...)>>(func),args...) };
-		}
-
-		template<class Return, class Func, class... Args>script_command make_script_command(
-			Func func,
-			named_argument<Args> const&... args)
-		{
-			return script_command{
-				std::vector<std::string>{args.name...},
-				detail::make_script_function(
-					static_cast<std::function<Return(script_runner&, count_t, count_t, Args...)>>(func),args...) };
-		}
-
-
-	}
-
-
-
-
-	//function part
-	namespace syntax_tree
-	{
-		namespace detail
-		{
-			struct make_token_tree_t
-			{
-				count_t line;
-				std::string const& filename;
-				string_iterator top;
-				string_iterator now;
-				string_iterator last;
-
-				void push_back(std::vector<token_tree>& vec, token_tree t)
-				{
-					vec.push_back(t);
-				}
-
-				token_tree make_token_tree()
-				{
-					std::vector<token_tree> ret;
-					string_iterator s = now;
-					string_iterator e = now;
-					count_t const start = std::distance(top, now);
-					bool f = false;
-					bool mode = false;
-
-					for (; now != last;++now)
+					std::string::iterator fir = first;
+					for (;first != last;++first)
 					{
-						char c = *now;
-						
-						if (mode)
+						if (*first == '\"')
+							return make_token(std::string{ std::prev(fir),std::next(first) }, std::distance(base, fir) - 1);
+					}
+					throw utility::make_exception<std::domain_error>(R"(not found termination of string token)", filename, line, std::distance(base, fir));
+				}
+				else
+				{
+					bool token_flag = false;
+					std::string::iterator fir = first;
+					std::string::iterator las = first;
+					std::vector<token_tree> ret;
+					for (;first != last;++first)
+					{
+						char c = *first;
+						if (c == '\"')
 						{
-							if (c == '\"')
-							{
-								++now;
-								push_back(ret, TokenString(std::string(s, now), std::distance(top, s)));
-								mode = false;
-								f = false;
-							}
+							if (token_flag)
+								ret.push_back(make_token(std::string{ fir,las }, std::distance(base, fir)));
+							ret.push_back(make_token_tree_impl(
+								base,
+								++first,
+								last,
+								filename,
+								line,
+								true));
 						}
 						else if (c == '(')
 						{
-							if (auto d = std::distance(s, e))
-								push_back(ret, TokenString(std::string(s, e), d));
-							++now;
-							ret.push_back(make_token_tree());
-							f = false;
-							s = e = now;
+							if (token_flag)
+								ret.push_back(make_token(std::string{ fir,las }, std::distance(base, fir)));
+							fir = first;
+							ret.push_back(make_token_tree_impl(base, ++first, last, filename, line));
+							token_flag = false;
+							
+							if (first == last)
+								throw utility::make_exception<std::domain_error>(R"(not found termination of "(")", filename, line, std::distance(base, fir));
 						}
 						else if (c == ')' || c == '#')
 						{
 							break;
 						}
-						else if (c == '\"')
+						else if (c == ' ' || c == '\t')
 						{
-							if (auto d = std::distance(s, e))
-								push_back(ret, TokenString(std::string(s, e), d));
-							s = now;
-							mode = true;
+							if (token_flag)
+								ret.push_back(make_token(std::string{ fir,las }, std::distance(base, fir)));
+							token_flag = false;
 						}
-						else if (c == ' ')
+						else if (!token_flag)
 						{
-							f = false;
-						}
-						else if (c == '\t')
-						{
-							f = false;
-						}
-						else if (f)
-						{
-							++e;
+							token_flag = true;
+							fir = first;
+							las = std::next(first);
 						}
 						else
 						{
-							if (auto d = std::distance(s, e))
-								push_back(ret, TokenString(std::string(s, e), d));
-							f = true;
-							s = now;
-							e = std::next(s);
+							++las;
 						}
 					}
-					if (mode)
-						throw utility::make_exception<std::domain_error>(R"(missing terminating '"' charactor)", filename, line, std::distance(top, s));
+					if (token_flag)
+						ret.push_back(make_token(std::string{ fir,las }, std::distance(base, fir)));
+					return make_tree(ret);
+				}
+			}
+		}
 
-					if (auto d = std::distance(s, e))
-						push_back(ret, TokenString(std::string(s, e), d));
-					return TokenTree(ret, start);
+		template<class Stream>std::vector<token_tree> make_token_tree(Stream&& stream, std::string filename)
+		{
+			line_t line = 1;
+			std::string str;
+			std::vector<token_tree> ret{};
+			while (std::getline(stream, str))
+			{
+				auto first = str.begin();
+				auto ite = str.begin();
+				auto last = str.end();
+				ret.push_back(detail::make_token_tree_impl(first, ite, last, filename, line));
+			}
+			return ret;
+		}
+
+		namespace detail 
+		{
+			const auto PrintTree = pattern_match::generic_recursion<int, token_tree_base, int>() 
+				| Token(0_, 1_) <= [](auto, auto, std::string const& str, column_t c, int v)
+			{
+				for (int i = 0;i < v;++i)
+					std::cout << "  ";
+				std::cout << str << std::endl;
+				return 0;
+			} 
+				| Tree(0_) <= [](auto recur, auto, std::vector<token_tree>const& vec, int v)
+			{
+				for (int i = 0;i < v;++i)
+					std::cout << "  ";
+				std::cout << "----" << std::endl;
+				for (auto const& d : vec)
+				{
+					recur(d, v + 1);
+				}
+				return 0;
+			};
+		}
+		void print_tree(token_tree const& t)
+		{
+			detail::PrintTree(t, -1);
+		}
+
+		const auto get_token = pattern_match::generic_match<boost::optional<std::pair<std::string, column_t>>,token_tree_base>()
+			| Token(0_, 1_) <= [](auto, std::string const& str, column_t column) {return boost::make_optional(std::make_pair(str, column));}
+			| Tree <= [](auto) {return static_cast<boost::optional<std::pair<std::string, column_t>>>(boost::none);};
+
+		const auto get_tree = pattern_match::generic_match<boost::optional<std::reference_wrapper<std::vector<token_tree_base> const>>,token_tree_base>()
+			| Tree(0_) <= [](auto, std::vector<token_tree_base>const& vec) {return boost::make_optional(std::cref(vec));}
+			| Token <= [](auto) {return static_cast<boost::optional<std::reference_wrapper<std::vector<token_tree_base> const>>>(boost::none);};
+	}
+
+	template<class... Ts>struct short_script_runner;
+	template<class ValueType>struct system_command;
+	template<class... Ts>struct system_command<boost::variant<Ts...>>
+	{
+		typedef boost::variant<Ts...> value_type;
+		typedef short_script_runner<Ts...> runner;
+		std::function<runner&(std::vector<value_type>&&, runner&, line_t)> func;
+		std::vector<std::type_index> types;
+		std::string command_name;
+		runner& call(std::vector<value_type>&& val, runner& target, line_t line, filename_t const& filename)const
+		{
+			if (types.size() != val.size())
+				throw utility::make_exception<std::invalid_argument>(R"(system command "%1%" requires %2% arguments, but %3% were provided)", filename, line, 0, command_name, types.size(), val.size());
+			for (int i = 0;i < val.size();++i)
+				if (types[i] != val[i].type())
+					throw utility::make_exception<std::invalid_argument>(R"(provided argument types were wrong)", filename, line, 0);
+			return func(std::move(val), target, line);
+		}
+	};
+	template<class ValueType>struct embedded_script_command;
+	template<class... Ts>struct embedded_script_command<boost::variant<Ts...>>
+	{
+		typedef boost::variant<Ts...> value_type;
+		std::vector<std::type_index> types;
+		std::function<value_type(std::vector<value_type>, filename_t const&, column_t, line_t, short_script_runner<Ts...>&)> func;
+		bool can_static_call_;
+		bool type_check(std::vector<value_type>const& vec)const
+		{
+			if (vec.size() != types.size())
+				return false;
+			for (int i = 0;i < vec.size();++i)
+			{
+				if (vec[i].type() != types[i])
+					return false;
+			}
+			return true;
+		}
+		value_type call(std::vector<value_type>&& value, filename_t const& filename, column_t column, line_t line, short_script_runner<Ts...>& runner)const
+		{
+			return func(std::move(value), filename, column, line, runner);
+		}
+		bool can_static_call()const
+		{
+			return can_static_call_;
+		}
+	};
+	template<class ValueType>struct variadic_script_command;
+	template<class... Ts>struct variadic_script_command<boost::variant<Ts...>>
+	{
+		typedef boost::variant<Ts...> value_type;
+		std::type_index type;
+		std::function<value_type(std::vector<value_type>, filename_t const&, column_t, line_t, short_script_runner<Ts...>&)> func;
+		bool can_static_call_;
+		bool type_check(std::vector<value_type>const& vec)const
+		{
+			for (auto const& v : vec)
+			{
+				if (v.type() != type)
+					return false;
+			}
+			return true;
+		}
+		value_type call(std::vector<value_type>&& value, filename_t const& filename, column_t column, line_t line, short_script_runner<Ts...>& runner)const
+		{
+			return func(std::move(value), filename, column, line, runner);
+		}
+		bool can_static_call()const
+		{
+			return can_static_call_;
+		}
+	};
+	template<class ValueType>struct user_defined_command;
+	template<class... Ts>struct user_defined_command<boost::variant<Ts...>>
+	{
+		typedef boost::variant<Ts...> value_type;
+		std::function<value_type(std::vector<value_type>, filename_t const&, column_t, line_t, short_script_runner<Ts...>&)> func;
+
+		bool type_check(std::vector<value_type>const&)const
+		{
+			return true;
+		}
+
+		value_type call(std::vector<value_type>&& value, filename_t const& filename, column_t column, line_t line, short_script_runner<Ts...>& runner)const
+		{
+			return func(std::move(value), filename, column, line, runner);
+		}
+
+		bool can_static_call()const
+		{
+			return false;
+		}
+	};
+	template<class ValueType>using script_command = boost::variant<
+		embedded_script_command<ValueType>,
+		variadic_script_command<ValueType>,
+		user_defined_command<ValueType>>;
+	template<class Generic>struct runner_type;
+	template<class... Ts>struct runner_type<boost::variant<Ts...>>
+	{
+		typedef short_script_runner<Ts...> type;
+	};
+	template<class Generic>using runner_t = typename runner_type<Generic>::type;
+	template<class Generic>bool type_check(
+		script_command<Generic>const& v, 
+		std::vector<value_type>const& val)
+	{
+		return boost::apply_visitor([&](auto const& u) {return u.type_check(val);}, v);
+	}
+
+	template<class Generic>Generic call(script_command<Generic>const& v, std::vector<Generic>&& value, filename_t const& filename, column_t column, line_t line, runner_t<Generic>& runner)
+	{
+		return boost::apply_visitor([&](auto const& u) {return u.type_check(std::move(value), filename, column, line, runner);}, v);
+	}
+
+	template<class Generic>bool can_static_call(script_command<Generic>const& v)
+	{
+		return boost::apply_visitor([](auto const& v) {return v.can_static_call();}, v);
+	}
+
+
+	namespace syntax_trait
+	{
+		struct expression :generic_data_type<expression,
+			tuple<generic_tag, column_t, line_t>,//Literal
+			tuple<std::string, column_t, line_t>,//Value
+			tuple<std::vector<std::reference_wrapper<script_command<generic_tag>>>, 
+				std::vector<expression>, column_t, line_t>> {};//Func
+		const auto Literal = expression::instance_function<0>();
+		const auto Value = expression::instance_function<1>();
+		const auto Func = expression::instance_function<2>();
+		namespace detail
+		{
+			struct eval_literal_t
+			{
+				template<class Recur, class Generic>Generic operator()(
+					Recur recur,
+					type_tag<Generic>,
+					Generic const& v,
+					column_t column,
+					line_t line,
+					std::string const& filename,
+					utility::dictionary<std::string, Generic>const& global,
+					utility::dictionary<std::string, Generic>const& local)const
+				{
+					return v;
+				}
+			};
+			struct eval_value_t
+			{
+				template<class Recur, class Generic>Generic operator()(
+					Recur recur,
+					type_tag<Generic>,
+					std::string const& name,
+					column_t column,
+					line_t line,
+					std::string const& filename,
+					utility::dictionary<std::string, Generic>const& global,
+					utility::dictionary<std::string, Generic>const& local)const
+				{
+					if (auto v = utility::dictionary_search(local, name))
+						return *v;
+					if (auto v = utility::dictionary_search(global, name))
+						return *v;
+					return 0;
+				}
+			};
+			struct eval_function_t
+			{
+				template<class Recur, class Generic>Generic operator()(
+					Recur recur,
+					type_tag<Generic>,
+					std::vector<std::reference_wrapper<script_command<Generic>>>const& funcs,
+					std::vector<expression> const& exprs, 
+					column_t column,
+					line_t line,
+					std::string const& filename,
+					utility::dictionary<std::string, Generic>const& global,
+					utility::dictionary<std::string, Generic>const& local)const
+				{
+					for (auto const& func : boost::adaptors::reverse(funcs))
+					{
+						std::vector<Generic> val{};
+						for (auto const& expr : exprs)
+						{
+							val.push_back(recur(expr, filename, global, local));
+						}
+						for (auto const& func : funcs)
+						{
+							auto& f = *func;
+							if (boost::apply_visitor([&](auto& u) {return u.type_check(val);}, f))
+								return boost::apply_visitor([&](auto& u) {return u.call(std::move(val), filename, line, column);});
+						}
+						throw utility::make_exception<std::domain_error>(R"(no match function error)", filename, line, column);
+					}
 				}
 			};
 		}
-		token_tree make_token_tree(std::string str, count_t line, std::string filename)
+		const auto value_eval = pattern_match::generic_recursion<generic_tag,
+			expression, std::string const&,
+			utility::dictionary<std::string, generic_tag>const&,
+			utility::dictionary<std::string, generic_tag>const&>()
+			| Literal(0_, 1_, 2_) <= detail::eval_literal_t()
+			| Value(0_, 1_, 2_) <= detail::eval_value_t()
+			| Func(0_, 1_, 2_, 3_) <= detail::eval_function_t();
+		template<class Generic>using expr_type = std::shared_ptr<expression::value_type<Generic>>;
+
+		struct syntax : generic_data_type<syntax,
+			tuple<std::string, std::array<expr_type<generic_tag>, 3>, std::vector<syntax>, line_t>,//For
+			tuple<std::vector<std::pair<expr_type<generic_tag>, std::vector<syntax>>>, std::vector<syntax>, line_t>,//If
+			tuple<expr_type<generic_tag>, std::vector<syntax>, line_t>,//While
+			tuple<std::string, expr_type<generic_tag>>,//Global
+			tuple<std::string, expr_type<generic_tag>>,//Let
+			tuple<expr_type<generic_tag>>>//Expr
+		{};
+		const auto For = syntax::instance_function<0>();
+		const auto If = syntax::instance_function<1>();
+		const auto While = syntax::instance_function<2>();
+		const auto Global = syntax::instance_function<3>();
+		const auto Let = syntax::instance_function<4>();
+		const auto Expr = syntax::instance_function<5>();
+		template<class Generic>using syntax_type = std::shared_ptr<syntax::value_type<Generic>>;
+
+		template<class Generic>std::pair<std::vector<syntax_type<Generic>>, boost::optional<std::reference_wrapper<script_command<Generic>>>> parsing_short_script(
+			utility::dictionary<std::string, system_command<Generic>>const& system_command,
+			runner_t<Generic>& runner,
+			std::string entry,
+			vector_iterator<token_traits::token_tree> base,
+			vector_iterator<token_traits::token_tree> first,
+			vector_iterator<token_traits::token_tree> last);
+		
+	}
+	template<class... Ts>boost::variant<Ts...>run(
+		short_script_runner<Ts...>& runner,
+		vector_iterator<syntax_trait::syntax_type<boost::variant<Ts...>>> first,
+		vector_iterator<syntax_trait::syntax_type<boost::variant<Ts...>>> last,
+		utility::dictionary<std::string, boost::variant<Ts...>>& local);
+	template<class... Ts>struct script_runner
+	{
+		typedef boost::variant<Ts...> value_type;
+		std::vector<std::pair<std::string, script_command<value_type>>> commands;
+		std::vector<syntax_trait::syntax_type<value_type>> code;
+		utility::dictionary<std::string, value_type> global;
+		std::string filename;
+		boost::optional<std::reference_wrapper<script_command<value_type>>> entry_point;
+		template<class Stream>script_runner(
+			Stream&& stream,
+			std::string filen,
+			std::string entry,
+			utility::dictionary<std::string, system_command<value_type>>const& system_commands, 
+			std::vector<std::pair<std::string,script_command<value_type>>&&default_commands):
+			commands(std::move(default_commands)),
+			code{},
+			global{},
+			filename{std::move(filen)},
+			entry_point(boost::none)
 		{
-			detail::make_token_tree_t runner{ line, filename, std::begin(str), std::begin(str), std::end(str) };
-			return runner.make_token_tree();
+			std::vector<token_traits::token_tree> token = token_traits::make_token_tree(stream, filename);
+			auto first = token.begin();
+			auto last = token.end();
+			auto&& c = syntax_trait::parsing_short_script(system_commands, *this, first, first, last);
+			entry_point = c.second;
+			code = std::move(c.first);
 		}
-
-		namespace detail
+		value_type run(std::vector<value_type>&& val)
 		{
-			using namespace plasma_adt::place_holder;
-			namespace
-			{
-				const auto GetToken = plasma_adt::pattern_match::pattern_match<
-					boost::optional<std::pair<std::string, count_t>>,
-					token_tree>()
-					| TokenString(0_, 1_) <= [](std::string const& str, count_t column) {return std::make_pair(str, column);}
-					| TokenTree <= []() {return static_cast<boost::optional<std::pair<std::string, count_t>>>(boost::none);};
-
-				const auto GetTopToken = plasma_adt::pattern_match::pattern_match<
-					boost::optional<std::pair<std::string, count_t>>,
-					token_tree>()
-					| TokenTree(0_, 1_) <= [](std::vector<token_tree>const& t, count_t)
-						{
-							return t.size() == 0 ?
-								static_cast<boost::optional<std::pair<std::string, count_t>>>(boost::none) :
-								GetToken(utility::at(t, 0));
-						}
-					| TokenString <= []() {return static_cast<boost::optional<std::pair<std::string, count_t>>>(boost::none);};
-
-				const auto GetVector = plasma_adt::pattern_match::pattern_match<
-					boost::optional<std::vector<token_tree>>,
-					token_tree>()
-					| TokenTree(0_, 1_) <= [](std::vector<token_tree> const& v, count_t column)
-						{
-						return boost::make_optional(v);
-						}
-					| TokenString <= []() {return static_cast<boost::optional<std::vector<token_tree>>>(boost::none);};
-
-				const auto GetColumn = plasma_adt::pattern_match::pattern_match<
-					count_t,
-					token_tree>()
-					| TokenTree(0_, 1_) <= [](auto const&, count_t column) {return column;}
-					| TokenString(0_, 1_) <= [](auto const&, count_t column) {return column;};
-
-				const auto GetLiteral = plasma_adt::pattern_match::pattern_match<
-					boost::optional<const_value_type>,
-					expression>()
-					| Integer(0_, 1_) <= [](auto v, count_t) {return boost::make_optional(const_value_type(v));}
-					| Double(0_, 1_) <= [](auto v, count_t) {return boost::make_optional(const_value_type(v));}
-					| String(0_, 1_) <= [](auto const& v, count_t) {return boost::make_optional(const_value_type(v));}
-					| Boolean(0_, 1_) <= [](auto v, count_t) {return boost::make_optional(const_value_type(v));}
-					| 0_ <= [](auto const&) {return static_cast<boost::optional<const_value_type>>(boost::none);};
-			
-					const auto print_ = plasma_adt::pattern_match::recursion_match<int, token_tree, int>()
-						| TokenTree(0_, 1_) <= [](auto f, std::vector<token_tree>const& vec, count_t, int count)
-					{
-						for (int i = 0;i < count;++i)
-							std::cout << " ";
-						std::cout << "----" << std::endl;
-						for (auto const& v : vec)
-						{
-							f(v, count + 2);
-						}
-						return 0;
-					}
-						| TokenString(0_, 1_) <= [](auto, std::string const& str, count_t, int count)
-					{
-						for (int i = 0;i < count;++i)
-						{
-							std::cout << " ";
-						}
-						std::cout << str << std::endl;
-						return 0;
-					};
-			}
-			namespace 
-			{
-				inline expression make_literal(const_value_type v, count_t column)
-				{
-					if (v.type() == typeid(int))
-						return Integer(boost::get<int>(v), column);
-					if (v.type() == typeid(double))
-						return Double(boost::get<double>(v), column);
-					if (v.type() == typeid(std::string))
-						return String(boost::get<std::string>(v), column);
-
-					return Boolean(boost::get<bool>(v), column);
-				}
-
-				inline boost::optional<expression> literal_check(token_tree const& ttree)
-				{
-					auto i = GetToken(ttree);
-					if (!i)
-						return boost::none;
-					auto const& str = (*i).first;
-					auto const column = (*i).second;
-					if (std::regex_match(str, std::basic_regex<char>(R"(-?\d+)")))
-						return Integer(boost::lexical_cast<int>(str), column);
-					if (std::regex_match(str, std::basic_regex<char>(R"([+-]?((\d*.\d+)|(\d+.\d*))|(\d+[eE][-+]\d+))")))
-						return Double(boost::lexical_cast<double>(str), column);
-					if (std::regex_match(str, std::basic_regex<char>(R"(\".+\")")))
-						return String(str.substr(1, str.size() - 2), column);
-					if (str == "true")
-						return Boolean(true, column);
-					if (str == "false")
-						return Boolean(false, column);
-					return boost::none;
-				}
-
-				inline expression static_eval(
-					script_runner& runner,
-					std::reference_wrapper<static_command> com,
-					std::vector<expression> expr, count_t line, count_t column)
-				{
-					std::vector<const_value_type> val;
-					for (auto const& e : expr)
-					{
-						if (auto v = GetLiteral(e))
-						{
-							val.push_back(*v);
-						}
-						else
-						{
-							return StaticCommand(com, expr, column);
-						}
-					}
-					return make_literal(com.get().operator()(runner, std::move(val), line, column), column);
-				}
-
-				expression translation_expression(
-					token_tree const& ttree, 
-					utility::dictionary<std::string, const_value_type>const& static_values,
-					script_runner& runner,
-					count_t line)
-				{
-
-					if (auto t = literal_check(ttree))return *t;
-					if (auto v = GetToken(ttree))
-					{
-						if (auto u = utility::dictionary_search(static_values, v->first))
-						{
-							return make_literal(*u, v->second);
-						}
-						if (auto c = utility::dictionary_ref_search(runner.static_commands, v->first))
-						{
-							auto& r = (*c).get();
-							if (r.size() == 0)
-							{
-								return make_literal(r(runner, std::vector<const_value_type>{}, line, GetColumn(ttree)), GetColumn(ttree));
-							}
-							throw utility::make_exception<std::domain_error>(R"("%1%" requires more equal %2% argument, but 0 were provided)", runner.filename, line, GetColumn(ttree), v->first, r.size());
-						}
-						if (auto c = utility::dictionary_ref_search(runner.script_commands, v->first))
-						{
-							auto& r = (*c).get();
-							if (r.size() == 0)
-							{
-								return ScriptCommand(r, std::vector<expression>{}, GetColumn(ttree));
-							}
-							throw utility::make_exception<std::domain_error>(R"("%1%" requires more equal %2% argument, but 0 were provided)", runner.filename, line, GetColumn(ttree), v->first, r.size());
-						}
-						return Value((*v).first, (*v).second);
-					}
-					auto const v = *GetVector(ttree);
-					if (v.size() == 0)
-					{
-						throw utility::make_exception<std::domain_error>(R"(expect expression)", runner.filename, line, GetColumn(ttree));
-					}
-					if (auto c = GetToken(utility::at(v, 0)))
-					{
-						auto p = *c;
-						if (auto u = utility::dictionary_ref_search(runner.static_commands, p.first))
-						{
-							auto c = u->get().size();
-							if (v.size() == 1)
-							{
-								return c == 0 ?
-									make_literal(u->operator()(runner, std::vector<const_value_type>{}, line, GetColumn(ttree)), GetColumn(ttree)) :
-									throw utility::make_exception<std::domain_error>(R"("%1%" requires more equal %2% argument, but 0 were provided)", runner.filename, line, GetColumn(ttree), p.first, c);
-							}
-							else if (v.size() > c + 1)
-							{
-								std::vector<expression> exprs;
-								for (std::size_t i = 1;i < c + 1;++i)
-								{
-									exprs.push_back(translation_expression(utility::at(v, i), static_values, runner, line));
-								}
-								exprs.push_back(
-									translation_expression(
-										TokenTree(std::vector<token_tree>(std::next(v.begin(), c + 1), std::end(v)),
-											GetColumn(utility::at(v, c + 1))),
-										static_values, runner, line));
-								return static_eval(runner, *u, exprs, line, GetColumn(utility::at(v, 0)));
-							}
-							else if (v.size() == c + 1)
-							{
-								std::vector<expression> exprs;
-								for (std::size_t i = 1;i < c + 1;++i)
-								{
-									exprs.push_back(translation_expression(utility::at(v, i), static_values, runner, line));
-								}
-								return static_eval(runner, *u, exprs, line, GetColumn(utility::at(v, 0)));
-							}
-							throw utility::make_exception<std::domain_error>(R"("%1%" requires more equal %2% argument, but %3% were provided)", runner.filename, line, GetColumn(ttree), p.first, c, v.size() - 1);
-						}
-						else if (auto u = utility::dictionary_ref_search(runner.script_commands, p.first))
-						{
-							auto c = u->get().size();
-
-							if (v.size() == 1)
-							{
-								return c == 0 ?
-									ScriptCommand(*u, std::vector<expression>{}, GetColumn(ttree)):
-									throw utility::make_exception<std::domain_error>(R"("%1%" requires more equal %2% argument, but 0 were provided)", runner.filename, line, GetColumn(ttree), p.first, c);
-							}
-							else if (v.size() > c + 1)
-							{
-								std::vector<expression> exprs;
-								for (std::size_t i = 1;i < c + 1;++i)
-								{
-									exprs.push_back(translation_expression(utility::at(v, i), static_values, runner, line));
-								}
-								exprs.push_back(
-									translation_expression(
-										TokenTree(std::vector<token_tree>(std::next(v.begin(), c + 1), std::end(v)),
-											GetColumn(utility::at(v, c + 1))),
-										static_values, runner, line));
-								return ScriptCommand(*u, exprs, GetColumn(ttree));
-							}
-							else if (v.size() == c + 1)
-							{
-								std::vector<expression> exprs;
-								for (int i = 1;i == c + 1;++i)
-								{
-									exprs.push_back(translation_expression(utility::at(v, i), static_values, runner, line));
-								}
-								return ScriptCommand(*u, exprs, GetColumn(ttree));
-							}
-							throw utility::make_exception<std::domain_error>(R"("%1%" requires more equal %2% argument, but %3% were provided)", runner.filename, line, GetColumn(ttree), p.first, c, v.size() - 1);
-						}
-						else
-						{
-							throw utility::make_exception<std::domain_error>(R"("%1%" is not function)", runner.filename, line, GetColumn(ttree), p.first);
-						}
-					}
-					else
-					{
-						throw utility::make_exception<std::domain_error>(R"(error function)", runner.filename, line, GetColumn(ttree));
-					}
-				}
-
-				inline script_runner& system_eval(
-					script_runner& runner,
-					system_command com,
-					std::vector<expression> expr, count_t line, count_t column)
-				{
-					std::vector<const_value_type> val;
-					for (auto const& e : expr)
-					{
-						if (auto v = GetLiteral(e))
-						{
-							val.push_back(*v);
-						}
-						else
-						{
-							throw utility::make_exception<std::invalid_argument>(R"(system command argument must be constant value)", runner.filename, line, column);
-						}
-					}
-					return com(runner, std::move(val), line);
-				}
-
-				syntax translation_syntax(
-					token_tree const& ttree,
-					utility::dictionary<std::string, system_command> const& sys_commands,
-					utility::dictionary<std::string, const_value_type>& static_values,
-					script_runner& runner,
-					count_t line)
-				{
-					auto vec = *GetVector(ttree);
-					if (vec.size() == 0)
-						return Null();
-					if (auto ci = GetToken(utility::at(vec, 0)))
-					{
-						if (auto com = utility::dictionary_search(sys_commands, ci->first))
-						{
-							auto s = com->size();
-							if (vec.size() <= s)
-							{
-								throw utility::make_exception<std::domain_error>(R"("%1%" requires more equal %2% argument, but %3% were provided)", runner.filename, line, GetColumn(ttree), ci->first, s, vec.size() - 1);
-							}
-							else if (vec.size() == s + 1)
-							{
-								std::vector<expression> expr;
-								for (std::size_t i = 1;i < s + 1;++i)
-								{
-									expr.push_back(translation_expression(utility::at(vec, i), static_values, runner, line));
-								}
-								system_eval(runner, *com, std::move(expr), line, GetColumn(ttree));
-							}
-							else
-							{
-								std::vector<expression> expr;
-								for (std::size_t i = 1;i < s;++i)
-								{
-									expr.push_back(translation_expression(utility::at(vec, i), static_values, runner, line));
-								}
-								expr.push_back(
-									translation_expression(
-										TokenTree(std::vector<token_tree>(std::next(std::begin(vec), s), std::end(vec)),
-										GetColumn(utility::at(vec, s))),
-										static_values, runner, line));
-								system_eval(runner, *com, std::move(expr), line, GetColumn(ttree));
-							}
-							return Null();
-						}
-						if (ci->first == "def")
-						{
-							if (vec.size() == 1)
-								throw utility::make_exception<std::domain_error>(R"(expect function name)", runner.filename, line, GetColumn(ttree));
-							auto name = GetToken(utility::at(vec, 1));
-							if(!name)
-								throw utility::make_exception<std::domain_error>(R"(invalid function name)", runner.filename, line, GetColumn(ttree));
-							std::vector<std::string> arg;
-							for (int i = 2;i < vec.size();++i)
-							{
-								auto v = GetToken(utility::at(vec, i));
-								if (!v)
-									throw utility::make_exception<std::domain_error>(R"(invalid function name)", runner.filename, line, GetColumn(utility::at(vec, i)));
-								arg.push_back(v->first);
-							}
-							utility::dictionary_add(runner.script_commands,name->first,script_command
-							{
-								arg,
-								[](script_runner& runner, utility::dictionary<std::string, value_type>&& vals, count_t line, count_t column)
-								{
-									return run(runner, line + 1, std::move(vals));
-								}
-							});
-							return Null();
-						}
-						else if (ci->first == "const")
-						{
-							if(vec.size()==1)
-								throw utility::make_exception<std::domain_error>(R"(expect constant value name)", runner.filename, line, GetColumn(ttree));
-							if(vec.size()==2)
-								throw utility::make_exception<std::domain_error>(R"(expect initialize value)", runner.filename, line, GetColumn(ttree));
-							auto name = GetToken(utility::at(vec, 1));
-							if(!name)
-								throw utility::make_exception<std::domain_error>(R"(invalid constant value name)", runner.filename, line, GetColumn(ttree));
-							if (auto v = GetLiteral(translation_expression(TokenTree(std::vector<token_tree>(std::next(std::begin(vec), 2), std::end(vec)), GetColumn(utility::at(vec, 2))), static_values, runner, line)))
-							{
-								utility::dictionary_add(static_values, name->first, *v);
-								return Null();
-							}
-							throw utility::make_exception<std::domain_error>(R"(constant value must be initialized by constant value)", runner.filename, line, GetColumn(ttree));
-						}
-						else if (ci->first == "let")
-						{
-							if (vec.size() == 1)
-								throw utility::make_exception<std::domain_error>(R"(expect value name)", runner.filename, line, GetColumn(ttree));
-							if (vec.size() == 2)
-								throw utility::make_exception<std::domain_error>(R"(expect assigned value)", runner.filename, line, GetColumn(ttree));
-							auto name = GetToken(utility::at(vec, 1));
-							return Let(name->first, translation_expression(
-								TokenTree(std::vector<token_tree>(std::next(std::begin(vec), 2), std::end(vec)),
-								GetColumn(utility::at(vec,2))), 
-								static_values, runner, line));
-						}
-						else if (ci->first == "for")
-						{
-							if (vec.size() < 4)
-								throw utility::make_exception<std::domain_error>(R"(invalid command)", runner.filename, line, GetColumn(ttree));
-							auto name = GetToken(utility::at(vec, 1));
-							if (!name)
-								throw utility::make_exception<std::domain_error>(R"(invalid value name)", runner.filename, line, GetColumn(ttree));
-							return For(name->first,
-								translation_expression(utility::at(vec, 2), static_values, runner, line),
-								translation_expression(utility::at(vec, 3), static_values, runner, line),
-								vec.size() == 4 ? Integer(1, 0) :
-								vec.size() == 5 ? translation_expression(utility::at(vec, 4), static_values, runner, line) :
-								translation_expression(TokenTree(std::vector<token_tree>(std::next(std::begin(vec), 4), std::end(vec)), GetColumn(utility::at(vec, 4))), static_values, runner, line));
-
-						}
-						else if (ci->first == "next")
-						{
-							return Next();
-						}
-						else if (ci->first == "while")
-						{
-							if(vec.size()==1)
-								throw utility::make_exception<std::domain_error>(R"(invalid command)", runner.filename, line, GetColumn(ttree));
-							return While(
-								vec.size() == 2 ? translation_expression(utility::at(vec, 1), static_values, runner, line) :
-								translation_expression(TokenTree(std::vector<token_tree>(std::next(std::begin(vec), 1), std::end(vec)), GetColumn(utility::at(vec, 1))), static_values, runner, line));
-						}
-						else if (ci->first == "loop")
-						{
-							return Loop();
-						}
-						else if (ci->first == "if")
-						{
-							if(vec.size()==1)
-								throw utility::make_exception<std::domain_error>(R"(invalid command)", runner.filename, line, GetColumn(ttree));
-							return If(
-								vec.size() == 2 ? 
-								translation_expression(utility::at(vec, 1), static_values, runner, line) :
-								translation_expression(
-									TokenTree(std::vector<token_tree>(std::next(std::begin(vec), 1), std::end(vec)),
-										GetColumn(utility::at(vec, 1))), static_values, runner, line));
-						}
-						else if (ci->first == "elif")
-						{
-							if (vec.size() == 1)
-								throw utility::make_exception<std::domain_error>(R"(invalid command)", runner.filename, line, GetColumn(ttree));
-							return Elif(
-								vec.size() == 2 ?
-								translation_expression(utility::at(vec, 1), static_values, runner, line) :
-								translation_expression(
-									TokenTree(std::vector<token_tree>(std::next(std::begin(vec), 1), std::end(vec)),
-										GetColumn(utility::at(vec, 1))), static_values, runner, line));
-						}
-						else if (ci->first == "else")
-						{
-							return Else();
-						}
-						else if (ci->first == "endif")
-						{
-							return Endif();
-						}
-						else if (ci->first == "return")
-						{	
-							return Return(
-								vec.size() == 1 ? Integer(0, 0) :
-								vec.size() == 2 ?
-								translation_expression(utility::at(vec, 1), static_values, runner, line) :
-								translation_expression(
-									TokenTree(std::vector<token_tree>(std::next(std::begin(vec), 1), std::end(vec)),
-										GetColumn(utility::at(vec, 1))), static_values, runner, line));
-						}
-						else
-						{
-							return Expr(translation_expression(ttree, static_values, runner, line));
-						}
-					}
-				}
-			}
-			
+			return call(entry_point, std::move(val), filename, 0, 0, *this);
 		}
-
+	};
+	namespace syntax_trait
+	{
+		template<class Generic>std::pair<std::vector<syntax_type<Generic>>, boost::optional<std::reference_wrapper<script_command<Generic>>>> parsing_short_script(
+			utility::dictionary<std::string, system_command<Generic>>const& system_command,
+			runner_t<Generic>& runner,
+			std::string entry,
+			vector_iterator<token_traits::token_tree> base,
+			vector_iterator<token_traits::token_tree> first,
+			vector_iterator<token_traits::token_tree> last)
+		{
+			std::vector<syntax_type<Generic>> code;
+			boost::optional<std::reference_wrapper<script_command<Generic>>> entry_point;
+			for (;first != last;++first)
+			{
+				
+			}
+		}
 	}
 }

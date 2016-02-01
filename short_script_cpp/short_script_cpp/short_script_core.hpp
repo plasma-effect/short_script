@@ -563,6 +563,8 @@ namespace short_script_cpp
 
 	}
 
+
+
 	struct script_runner
 	{
 		std::vector<string_tree> code;
@@ -976,7 +978,7 @@ namespace short_script_cpp
 	{
 		return script_command
 		{
-			std::vector<std::string>{std::string(argument_names...)},
+			std::vector<std::string>{std::string(argument_names)...},
 			std::forward<Func>(func)
 		};
 	}

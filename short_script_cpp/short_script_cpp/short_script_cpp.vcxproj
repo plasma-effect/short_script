@@ -152,12 +152,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="short_script_core.hpp" />
+    <ClInclude Include="short_script_v2.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="memo.txt" />
+    <Text Include="memo2.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

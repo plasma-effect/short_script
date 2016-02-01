@@ -1,40 +1,54 @@
-#include"short_script_core.hpp"
+
+
 #include<iostream>
 #include<fstream>
 
+#define TEST_V2
+#ifndef TEST_V2
+#include"short_script_core.hpp"
 using namespace short_script_cpp;
 
 int main(int argc,char const* argv[])
 {
-#ifndef _DEBUG
 	std::fstream ss{ argv[1] };
-	try {
-#else
-	std::stringstream ss{
-		R"(def fact n
-if = n 0
- return 1
-else
- return * n fact - n 1
-
-def main
-println fact 6
-return)" };
-#endif
-	auto coms = get_default_command();
-	dictionary_add(coms, std::string("test"),make_command([](dictionary<std::string, value_type>& local, std::size_t)
+	if (!ss)
 	{
-		auto v = *dictionary_search(local, std::string("hage"));
-		std::cout << v.type().name() << std::endl;
-		return 0;
-	}, "hage"));
-	script_runner runner{ std::move(ss),std::move(coms) };
+		std::cerr << argv[1] << " was not found." << std::endl;
+	}
+	else
+	try 
+	{
+		auto coms = get_default_command();
+		dictionary_add(coms, std::string("test"),make_command([](dictionary<std::string, value_type>& local, std::size_t)
+		{
+			auto v = *dictionary_search(local, std::string("hage"));
+			std::cerr << v.type().name() << std::endl;
+			return 0;
+		}, "hage"));
+		script_runner runner{ std::move(ss),std::move(coms) };
 		runner.main("main");
-#ifndef _DEBUG
 	}
 	catch (std::exception& exp)
 	{
 		std::cout << exp.what() << std::endl;
 	}
-#endif
 }
+#else
+#include"short_script_v2.hpp"
+#include<sstream>
+int main()
+{
+	std::string str;
+	std::getline(std::cin, str);
+	std::stringstream ss{ str };
+	try
+	{
+		auto t = short_script_v2::token_traits::make_token_tree(std::move(ss), "test.txt");
+		short_script_v2::token_traits::print_tree(t[0]);
+	}
+	catch (std::exception& exp)
+	{
+		std::cerr << exp.what() << std::endl;
+	}
+}
+#endif

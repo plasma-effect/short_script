@@ -23,12 +23,18 @@
     <ClInclude Include="short_script_core.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="short_script_v2.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="memo.txt">
+      <Filter>リソース ファイル</Filter>
+    </Text>
+    <Text Include="memo2.txt">
       <Filter>リソース ファイル</Filter>
     </Text>
   </ItemGroup>
