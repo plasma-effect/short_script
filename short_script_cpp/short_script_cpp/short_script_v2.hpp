@@ -264,13 +264,10 @@ namespace short_script_v2
 			detail::PrintTree(t, -1);
 		}
 
-		const auto get_token = pattern_match::generic_match<boost::optional<std::pair<std::string, column_t>>,token_tree_base>()
-			| Token(0_, 1_) <= [](auto, std::string const& str, column_t column) {return boost::make_optional(std::make_pair(str, column));}
-			| Tree <= [](auto) {return static_cast<boost::optional<std::pair<std::string, column_t>>>(boost::none);};
-
-		const auto get_tree = pattern_match::generic_match<boost::optional<std::reference_wrapper<std::vector<token_tree_base> const>>,token_tree_base>()
-			| Tree(0_) <= [](auto, std::vector<token_tree_base>const& vec) {return boost::make_optional(std::cref(vec));}
-			| Token <= [](auto) {return static_cast<boost::optional<std::reference_wrapper<std::vector<token_tree_base> const>>>(boost::none);};
+		const auto get_token = pattern_match::generic_match<std::pair<std::string, column_t>,token_tree_base>()
+			| Token(0_, 1_) <= [](auto, std::string const& str, column_t column) {return std::make_pair(str, column);};
+		const auto get_tree = pattern_match::generic_match<std::reference_wrapper<std::vector<token_tree_base> const>, token_tree_base>()
+			| Tree(0_) <= [](auto, std::vector<token_tree_base>const& vec) {return std::cref(vec);};
 	}
 
 	template<class... Ts>struct short_script_runner;
@@ -499,6 +496,7 @@ namespace short_script_v2
 			utility::dictionary<std::string, system_command<Generic>>const& system_command,
 			runner_t<Generic>& runner,
 			std::string entry,
+			std::vector<std::function<boost::optional<Generic>(std::string)>>const& literal_checks,
 			vector_iterator<token_traits::token_tree> base,
 			vector_iterator<token_traits::token_tree> first,
 			vector_iterator<token_traits::token_tree> last);
@@ -521,6 +519,7 @@ namespace short_script_v2
 			Stream&& stream,
 			std::string filen,
 			std::string entry,
+			std::vector<std::function<boost::optional<value_type>(std::string)>>const& literal_checks,
 			utility::dictionary<std::string, system_command<value_type>>const& system_commands, 
 			std::vector<std::pair<std::string,script_command<value_type>>&&default_commands):
 			commands(std::move(default_commands)),
@@ -532,7 +531,7 @@ namespace short_script_v2
 			std::vector<token_traits::token_tree> token = token_traits::make_token_tree(stream, filename);
 			auto first = token.begin();
 			auto last = token.end();
-			auto&& c = syntax_trait::parsing_short_script(system_commands, *this, first, first, last);
+			auto&& c = syntax_trait::parsing_short_script(system_commands, *this,literal_checks, first, first, last);
 			entry_point = c.second;
 			code = std::move(c.first);
 		}
@@ -543,10 +542,19 @@ namespace short_script_v2
 	};
 	namespace syntax_trait
 	{
+		template<class Generic>expr_type<Generic> parse_expression(
+			token_traits::token_tree const& token,
+			runner_t<Generic>& runner,
+			std::vector<std::function<value_type(std::string)>> literal_checks)
+		{
+
+		}
+
 		template<class Generic>std::pair<std::vector<syntax_type<Generic>>, boost::optional<std::reference_wrapper<script_command<Generic>>>> parsing_short_script(
 			utility::dictionary<std::string, system_command<Generic>>const& system_command,
 			runner_t<Generic>& runner,
 			std::string entry,
+			std::vector<std::function<boost::optional<Generic>(std::string)>>const& literal_checks,
 			vector_iterator<token_traits::token_tree> base,
 			vector_iterator<token_traits::token_tree> first,
 			vector_iterator<token_traits::token_tree> last)
@@ -555,6 +563,9 @@ namespace short_script_v2
 			boost::optional<std::reference_wrapper<script_command<Generic>>> entry_point;
 			for (;first != last;++first)
 			{
+				auto r = *token_traits::get_tree(*first);
+				auto const& vec = r.get();
+				if (vec.size() == 0)continue;
 				
 			}
 		}
