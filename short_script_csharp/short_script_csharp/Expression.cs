@@ -9,6 +9,8 @@ namespace ShortScriptCsharp
     public interface Expression
     {
         dynamic ValueEval(Dictionary<string, dynamic> local, ScriptRunner runner);
+        string ToString();
+        string ToString(int v);
     }
 
     class Value : Expression
@@ -21,6 +23,20 @@ namespace ShortScriptCsharp
             if (local.TryGetValue(name, out val)) return val;
             if (runner.Global.TryGetValue(name, out val)) return val;
             throw new ArgumentNullException(data.ExceptionMessage(string.Format("valuename {0} was not found in this scope.", name)));
+        }
+
+        public string ToString(int v)
+        {
+            string ret = "";
+            for (int i = 0; i < v; ++i)
+                ret += " ";
+            ret += string.Format("valuename:{0}", name);
+            return ret;
+        }
+
+        public override string ToString()
+        {
+            return ToString(-1);
         }
 
         public Value(string name,CodeData data)
@@ -38,6 +54,20 @@ namespace ShortScriptCsharp
             return val;
         }
 
+        public string ToString(int v)
+        {
+            string ret = "";
+            for (int i = 0; i < v; ++i)
+                ret += " ";
+            ret += string.Format("literal:{0}", val);
+            return ret;
+        }
+
+        public override string ToString()
+        {
+            return ToString(-1);
+        }
+
         public Literal(dynamic val)
         {
             this.val = val;
@@ -53,6 +83,24 @@ namespace ShortScriptCsharp
         {
             var v = (from e in exprs select e.ValueEval(local, runner)).ToArray();
             return this.func(v, data);
+        }
+
+        public string ToString(int v)
+        {
+            string ret = "";
+            for (int i = 0; i < v; ++i)
+                ret += " ";
+            ret += string.Format("function");
+            foreach(var u in exprs)
+            {
+                ret += "\n" + u.ToString(v + 1);
+            }
+            return ret;
+        }
+
+        public override string ToString()
+        {
+            return ToString(-1);
         }
 
         public Function(Func<dynamic[],CodeData,dynamic> func,Expression[] exprs,CodeData data)

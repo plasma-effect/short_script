@@ -104,7 +104,8 @@ namespace ShortScriptCsharp
                 while(stream.Peek()>=0)
                 {
                     var str = stream.ReadLine();
-                    trees.Add(new Tree(str, new CodeData(i, 0, this.Filename)));
+                    var tree = new Tree(str, new CodeData(i, 0, this.Filename));
+                    trees.Add(tree);
                     ++i;
                 }
             }
@@ -216,13 +217,13 @@ namespace ShortScriptCsharp
             while (true)
             {
                 var v = SyntaxParse(trees.Skip(i + skip), filename, system_command, literal_checker);
-                var expr = ExpressionParse(new Tree(trees.ElementAt(i + skip).GetTree().Skip(1).ToArray(), vec[1].GetData()), literal_checker);
+                var expr = ExpressionParse(new Tree(trees.ElementAt(i + skip - 1).GetTree().Skip(1).ToArray(), vec[1].GetData()), literal_checker);
 
                 if (v.Item3 == ReturnFlag.Elif)
                 {
                     syns.Add(Tuple.Create(expr, v.Item1));
                     skip += v.Item2;
-                    if (trees.ElementAt(i + skip).GetTree().Length == 1)
+                    if (trees.ElementAt(i + skip - 1).GetTree().Length == 1) 
                     {
                         throw new ArgumentException(token.GetData().ExceptionMessage("elif parameter is too few"));
                     }
@@ -242,6 +243,7 @@ namespace ShortScriptCsharp
                 }
                 else if (v.Item3 == ReturnFlag.Endif)
                 {
+                    syns.Add(Tuple.Create(expr, v.Item1));
                     code.Add(new If(token.GetData(), syns, new List<Syntax>()));
                     skip += v.Item2;
                     break;

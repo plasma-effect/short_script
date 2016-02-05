@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace ShortScriptCsharp
 {
-    class DefaultFunction
+    public class DefaultFunction
     {
         private static Tuple<int, Func<dynamic[], CodeData, dynamic>> MakeTuple(int v, Func<dynamic[], CodeData, dynamic> func)
         {
@@ -350,12 +350,31 @@ namespace ShortScriptCsharp
             Console.WriteLine(arg[0]);
             return null;
         }
+        
+        public static dynamic IntParse(dynamic[] arg,CodeData data)
+        {
+            try
+            {
+                return int.Parse(arg[0]);
+            }
+            catch(Exception)
+            {
+                throw new ArgumentException(data.ExceptionMessage("invalid argument type"));
+            }
+        }
 
-        public static Dictionary<string, Tuple<int, Func<dynamic[], CodeData, dynamic>>> GetPrint()
+        public static dynamic TypeName(dynamic[]arg,CodeData data)
+        {
+            return arg[0].GetType().Name;
+        }
+
+        public static Dictionary<string, Tuple<int, Func<dynamic[], CodeData, dynamic>>> GetUtilityFunction()
         {
             var ret = new Dictionary<string, Tuple<int, Func<dynamic[], CodeData, dynamic>>>();
             ret.Add("print", MakeTuple(1, Print));
             ret.Add("println", MakeTuple(1, PrintLine));
+            ret.Add("int.parse", MakeTuple(1, IntParse));
+            ret.Add("typename", MakeTuple(1, TypeName));
             return ret;
         }
 
@@ -365,7 +384,7 @@ namespace ShortScriptCsharp
             ret = ret.Concat(Get6BitOperator()).ToDictionary(x => x.Key, x => x.Value);
             ret = ret.Concat(Get8LogicOperator()).ToDictionary(x => x.Key, x => x.Value);
             ret = ret.Concat(GetArrayTraits()).ToDictionary(x => x.Key, x => x.Value);
-            ret = ret.Concat(GetPrint()).ToDictionary(x => x.Key, x => x.Value);
+            ret = ret.Concat(GetUtilityFunction()).ToDictionary(x => x.Key, x => x.Value);
             return ret;
         }
 
