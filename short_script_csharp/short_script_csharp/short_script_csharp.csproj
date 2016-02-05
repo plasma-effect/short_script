@@ -41,11 +41,15 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CodeData.cs" />
+    <Compile Include="DefaultFunction.cs" />
     <Compile Include="Expression.cs" />
     <Compile Include="ScriptRunner.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Syntax.cs" />
     <Compile Include="TokenTree.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="example.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

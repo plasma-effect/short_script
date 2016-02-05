@@ -1,0 +1,19 @@
+﻿def func x
+let v 1
+for i x 0 -1
+let v * v i
+next
+return v
+
+def func2 x
+let i x
+let v 0
+while < 0 i
+let v + v 1
+let i - i 1
+loop
+return v
+
+def main a
+let u func2 at a 0
+return u

@@ -4,11 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace short_script_csharp
+namespace ShortScriptCsharp
 { 
     public interface Syntax
     {
-        dynamic Run(Dictionary<string, dynamic> local, ScriptRunner runner);
+        dynamic Run(ref Dictionary<string, dynamic> local, ScriptRunner runner);
     }
 
     class For : Syntax
@@ -19,7 +19,7 @@ namespace short_script_csharp
         Expression first;
         Expression last;
         Expression step;
-        public dynamic Run(Dictionary<string, dynamic> local,ScriptRunner runner)
+        public dynamic Run(ref Dictionary<string, dynamic> local,ScriptRunner runner)
         {
             dynamic first = this.first.ValueEval(local, runner);
             dynamic last = this.last.ValueEval(local, runner);
@@ -52,11 +52,13 @@ namespace short_script_csharp
         List<Syntax> codes;
         Expression cond;
 
-        public dynamic Run(Dictionary<string, dynamic> local, ScriptRunner runner)
+        public dynamic Run(ref Dictionary<string, dynamic> local, ScriptRunner runner)
         {
-            while(cond.ValueEval(local,runner))
+            var v = cond.ValueEval(local, runner);
+            while(v)
             {
                 runner.Run(codes, local);
+                v = cond.ValueEval(local, runner);
             }
             return null;
         }
@@ -72,10 +74,10 @@ namespace short_script_csharp
     class If:Syntax
     {
         CodeData data;
-        Tuple<Expression, List<Syntax>>[] codes;
+        IEnumerable<Tuple<Expression, List<Syntax>>> codes;
         List<Syntax> elsecode;
 
-        public dynamic Run(Dictionary<string, dynamic> local, ScriptRunner runner)
+        public dynamic Run(ref Dictionary<string, dynamic> local, ScriptRunner runner)
         {
             foreach(var p in codes)
             {
@@ -85,7 +87,7 @@ namespace short_script_csharp
             return runner.Run(elsecode, local);
         }
 
-        public If(CodeData data,Tuple<Expression,List<Syntax>>[] codes,List<Syntax>elsecode)
+        public If(CodeData data, IEnumerable<Tuple<Expression, List<Syntax>>> codes,List<Syntax>elsecode)
         {
             this.data = data;
             this.codes = codes;
@@ -97,7 +99,7 @@ namespace short_script_csharp
     {
         string name;
         Expression expr;
-        public dynamic Run(Dictionary<string, dynamic> local, ScriptRunner runner)
+        public dynamic Run(ref Dictionary<string, dynamic> local, ScriptRunner runner)
         {
             runner.Global[name] = expr.ValueEval(local, runner);
             return null;
@@ -114,7 +116,7 @@ namespace short_script_csharp
     {
         string name;
         Expression expr;
-        public dynamic Run(Dictionary<string, dynamic> local, ScriptRunner runner)
+        public dynamic Run(ref Dictionary<string, dynamic> local,ScriptRunner runner)
         {
             local[name] = expr.ValueEval(local, runner);
             return null;
@@ -130,7 +132,7 @@ namespace short_script_csharp
     class Return : Syntax
     {
         Expression expr;
-        public dynamic Run(Dictionary<string, dynamic> local, ScriptRunner runner)
+        public dynamic Run(ref Dictionary<string, dynamic> local, ScriptRunner runner)
         {
             return expr.ValueEval(local, runner);
         }
@@ -144,7 +146,7 @@ namespace short_script_csharp
     class Expr : Syntax
     {
         Expression expr;
-        public dynamic Run(Dictionary<string, dynamic> local, ScriptRunner runner)
+        public dynamic Run(ref Dictionary<string, dynamic> local, ScriptRunner runner)
         {
             expr.ValueEval(local, runner);
             return null;

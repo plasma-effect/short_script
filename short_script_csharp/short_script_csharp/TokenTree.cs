@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace short_script_csharp
+namespace ShortScriptCsharp
 {
     public interface TokenTree
     {
@@ -122,7 +122,7 @@ namespace short_script_csharp
             int fir = count;
             int las = count;
 
-            for (int i = count; i != str.Length; ++i)
+            for (int i = count; i < str.Length; ++i)
             {
                 if(str[i]=='"')
                 {
@@ -167,7 +167,7 @@ namespace short_script_csharp
             }
             if (f) list.Add(new Token(str.Substring(fir, las - fir), new CodeData(line, fir, data.Filename)));
             this.tree = list.ToArray();
-            this.last = tree.Last().GetLast() + 1;
+            this.last = tree.Count() > 0 ? tree.Last().GetLast() + 1 : 0;
         }
         public Tree(TokenTree[] tree, CodeData data)
         {

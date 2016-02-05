@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace short_script_csharp
+namespace ShortScriptCsharp
 {
     public class CodeData
     {
