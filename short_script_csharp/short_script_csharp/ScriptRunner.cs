@@ -110,9 +110,34 @@ namespace ShortScriptCsharp
                 }
             }
             this.code = SyntaxParse(trees, filename, system_command, literal_checker).Item1;
-            DoNothing();
+            
         }
-        void DoNothing() { }
+
+        public ScriptRunner(
+            TextReader reader,
+            string filename,
+            Dictionary<string, Func<dynamic[], ScriptRunner, dynamic>> system_command,
+            Dictionary<string, Tuple<int, Func<dynamic[], CodeData, dynamic>>> function,
+            IEnumerable<Func<string, Expression>> literal_checker)
+        {
+            this.filename = filename;
+            this.function = function;
+            this.global = new Dictionary<string, dynamic>();
+            this.code = new List<Syntax>();
+            this.system_command = system_command;
+            this.literal_checker = literal_checker;
+            int i = 0;
+            List<TokenTree> trees = new List<TokenTree>();
+            while(reader.Peek()>=0)
+            {
+                var str = reader.ReadLine();
+                var tree = new Tree(str, new CodeData(i, 0, this.Filename));
+                trees.Add(tree);
+                ++i;
+            }
+            this.code = SyntaxParse(trees, filename, system_command, literal_checker).Item1;
+        }
+
         enum ReturnFlag
         {
             None, Else, Elif, Endif,Next,Loop
@@ -144,12 +169,12 @@ namespace ShortScriptCsharp
                 var com = vec[0].GetToken();
                 if (com == null)
                 {
-                    throw new ArgumentException(CodeData.ExceptionMessage("invalid command", filename, i, 0));
+                    throw new Exception(CodeData.ExceptionMessage("invalid command", filename, i, 0));
                 }
                 Func<dynamic[], ScriptRunner, dynamic> sys;
                 if (system_command.TryGetValue(com, out sys))
                 {
-                    var ar = from e in vec select ExpressionParse(e, literal_checker);
+                    var ar = from e in vec.Skip(1) select ExpressionParse(e, literal_checker);
                     var v = from e in ar select e.ValueEval(new Dictionary<string, dynamic>(), this);
                     sys(v.ToArray(), this);
                     continue;
@@ -179,17 +204,17 @@ namespace ShortScriptCsharp
         void SyntaxParseFor(ref int i, ref int skip, List<Syntax> code, TokenTree token, TokenTree[] vec, IEnumerable<TokenTree> trees, string filename, Dictionary<string, Func<dynamic[], ScriptRunner, dynamic>> system_command, IEnumerable<Func<string,Expression>> literal_checker)
         {
             if (vec.Length < 4)
-                throw new ArgumentException(token.GetData().ExceptionMessage("for parameter is too few"));
+                throw new Exception(token.GetData().ExceptionMessage("for parameter is too few"));
             var valname = vec[1].GetToken();
             if (valname == null)
-                throw new ArgumentException(token.GetData().ExceptionMessage("invalid value name"));
+                throw new Exception(token.GetData().ExceptionMessage("invalid value name"));
             var first = ExpressionParse(vec[2], literal_checker);
             var last = ExpressionParse(vec[3], literal_checker);
             var step = vec.Length > 4 ? ExpressionParse(new Tree(vec.Skip(4).ToArray(), vec[4].GetData()), literal_checker) : new Literal(1);
             var c = SyntaxParse(trees.Skip(i), filename, system_command, literal_checker);
             if (c.Item3 != ReturnFlag.Next)
             {
-                throw new ArgumentException(token.GetData().ExceptionMessage("next corresponding to the for can not be found"));
+                throw new Exception(token.GetData().ExceptionMessage("next corresponding to the for can not be found"));
             }
             code.Add(new For(token.GetData(), c.Item1, valname, first, last, step));
             skip += c.Item2;
@@ -198,12 +223,12 @@ namespace ShortScriptCsharp
         void SyntaxParsingWhile(ref int i, ref int skip, List<Syntax> code, TokenTree token, TokenTree[] vec, IEnumerable<TokenTree> trees, string filename, Dictionary<string, Func<dynamic[], ScriptRunner, dynamic>> system_command, IEnumerable<Func<string,Expression>> literal_checker)
         {
             if (vec.Length == 1)
-                throw new ArgumentException(token.GetData().ExceptionMessage("while parameter is too few"));
+                throw new Exception(token.GetData().ExceptionMessage("while parameter is too few"));
             var expr = ExpressionParse(new Tree(vec.Skip(1).ToArray(), vec[1].GetData()), literal_checker);
             var c = SyntaxParse(trees.Skip(i), filename, system_command, literal_checker);
             if (c.Item3 != ReturnFlag.Loop)
             {
-                throw new ArgumentException(token.GetData().ExceptionMessage("endif corresponding to the if can not be found"));
+                throw new Exception(token.GetData().ExceptionMessage("endif corresponding to the if can not be found"));
             }
             code.Add(new While(token.GetData(), c.Item1, expr));
             skip += c.Item2;
@@ -212,7 +237,7 @@ namespace ShortScriptCsharp
         void SyntaxParsingIf(ref int i, ref int skip, List<Syntax> code, TokenTree token, TokenTree[] vec, IEnumerable<TokenTree> trees, string filename, Dictionary<string, Func<dynamic[], ScriptRunner, dynamic>> system_command, IEnumerable<Func<string,Expression>> literal_checker)
         {
             if (vec.Length == 1)
-                throw new ArgumentException(token.GetData().ExceptionMessage("if parameter is too few"));
+                throw new Exception(token.GetData().ExceptionMessage("if parameter is too few"));
             var syns = new List<Tuple<Expression, List<Syntax>>>();
             while (true)
             {
@@ -225,7 +250,7 @@ namespace ShortScriptCsharp
                     skip += v.Item2;
                     if (trees.ElementAt(i + skip - 1).GetTree().Length == 1) 
                     {
-                        throw new ArgumentException(token.GetData().ExceptionMessage("elif parameter is too few"));
+                        throw new Exception(token.GetData().ExceptionMessage("elif parameter is too few"));
                     }
                 }
                 else if (v.Item3 == ReturnFlag.Else)
@@ -235,7 +260,7 @@ namespace ShortScriptCsharp
                     var u = SyntaxParse(trees.Skip(i + skip), filename, system_command, literal_checker);
                     if (u.Item3 != ReturnFlag.Endif)
                     {
-                        throw new ArgumentException(token.GetData().ExceptionMessage("endif corresponding to the if can not be found"));
+                        throw new Exception(token.GetData().ExceptionMessage("endif corresponding to the if can not be found"));
                     }
                     code.Add(new If(token.GetData(), syns, u.Item1));
                     skip += u.Item2;
@@ -250,7 +275,7 @@ namespace ShortScriptCsharp
                 }
                 else
                 {
-                    throw new ArgumentException(token.GetData().ExceptionMessage("endif corresponding to the if can not be found"));
+                    throw new Exception(token.GetData().ExceptionMessage("endif corresponding to the if can not be found"));
                 }
             }
         }
@@ -258,10 +283,10 @@ namespace ShortScriptCsharp
         void SyntaxParsingDef(ref int i, ref int skip, List<Syntax> code, TokenTree token, TokenTree[] vec, IEnumerable<TokenTree> trees, string filename, Dictionary<string, Func<dynamic[], ScriptRunner, dynamic>> system_command, IEnumerable<Func<string,Expression>> literal_checker)
         {
             if (vec.Length == 1)
-                throw new ArgumentException(token.GetData().ExceptionMessage("def parameter is too few"));
+                throw new Exception(token.GetData().ExceptionMessage("def parameter is too few"));
             var funcname = vec[1].GetToken();
             if (funcname == null)
-                throw new ArgumentException(token.GetData().ExceptionMessage("invalid function name"));
+                throw new Exception(token.GetData().ExceptionMessage("invalid function name"));
             List<string> names = new List<string>();
             var index = code.Count;
 
@@ -269,7 +294,7 @@ namespace ShortScriptCsharp
             {
                 var str = t.GetToken();
                 if (str == null)
-                    throw new ArgumentException(t.GetData().ExceptionMessage("invalid function parameter"));
+                    throw new Exception(t.GetData().ExceptionMessage("invalid function parameter"));
                 names.Add(str);
             }
             Func<dynamic[], CodeData, dynamic> func = (dy, data) =>
@@ -287,20 +312,20 @@ namespace ShortScriptCsharp
         void SyntaxParsingLet(ref int i, ref int skip, List<Syntax> code, TokenTree token, TokenTree[] vec, IEnumerable<TokenTree> trees, string filename, Dictionary<string, Func<dynamic[], ScriptRunner, dynamic>> system_command, IEnumerable<Func<string,Expression>> literal_checker)
         {
             if (vec.Length < 3)
-                throw new ArgumentException(token.GetData().ExceptionMessage("let argument is too few"));
+                throw new Exception(token.GetData().ExceptionMessage("let argument is too few"));
             var name = vec[1].GetToken();
             if (name == null)
-                throw new ArgumentException(token.GetData().ExceptionMessage("invalid value name"));
+                throw new Exception(token.GetData().ExceptionMessage("invalid value name"));
             code.Add(new Let(name, ExpressionParse(new Tree(vec.Skip(2).ToArray(), vec[2].GetData()), literal_checker)));
         }
 
         void SyntaxParsingGlobal(ref int i, ref int skip, List<Syntax> code, TokenTree token, TokenTree[] vec, IEnumerable<TokenTree> trees, string filename, Dictionary<string, Func<dynamic[], ScriptRunner, dynamic>> system_command, IEnumerable<Func<string,Expression>> literal_checker)
         {
             if (vec.Length < 3)
-                throw new ArgumentException(token.GetData().ExceptionMessage("global argument is too few"));
+                throw new Exception(token.GetData().ExceptionMessage("global argument is too few"));
             var name = vec[1].GetToken();
             if (name == null)
-                throw new ArgumentException(token.GetData().ExceptionMessage("invalid value name"));
+                throw new Exception(token.GetData().ExceptionMessage("invalid value name"));
             code.Add(new Global(name, ExpressionParse(new Tree(vec.Skip(2).ToArray(), vec[2].GetData()), literal_checker)));
         }
 
@@ -328,18 +353,18 @@ namespace ShortScriptCsharp
             else
             {
                 if (vec.Length == 0)
-                    throw new ArgumentException(tree.GetData().ExceptionMessage("null expression is invalid"));
+                    throw new Exception(tree.GetData().ExceptionMessage("null expression is invalid"));
                 var name = vec[0].GetToken();
                 if (name == null)
-                    throw new ArgumentException(tree.GetData().ExceptionMessage("invalid expression"));
+                    throw new Exception(tree.GetData().ExceptionMessage("invalid expression"));
                 if (vec.Length == 1)
                     return ExpressionParse(vec[0], literal_checker);
 
                 Tuple<int, Func<dynamic[], CodeData, dynamic>> set;
                 if (!function.TryGetValue(name, out set))
-                    throw new ArgumentException(tree.GetData().ExceptionMessage(string.Format("function {0} was not found", name)));
+                    throw new Exception(tree.GetData().ExceptionMessage(string.Format("function {0} was not found", name)));
                 if (set.Item1 >= vec.Length)
-                    throw new ArgumentException(tree.GetData().ExceptionMessage(string.Format("function {0} requires {1} argument, but provided was {2}", name, set.Item1, vec.Length - 1)));
+                    throw new Exception(tree.GetData().ExceptionMessage(string.Format("function {0} requires {1} argument, but provided was {2}", name, set.Item1, vec.Length - 1)));
                 if (set.Item1 != -1)
                 {
                     var exprs = new Expression[set.Item1];
@@ -368,11 +393,11 @@ namespace ShortScriptCsharp
             Tuple<int, Func<dynamic[], CodeData, dynamic>> v;
             if (!function.TryGetValue(entry_point, out v))
             {
-                throw new ArgumentNullException(CodeData.ExceptionMessage(string.Format("entrypoint {0} was not found", entry_point), filename, 0, 0));
+                throw new Exception(CodeData.ExceptionMessage(string.Format("entrypoint {0} was not found", entry_point), filename, 0, 0));
             }
             if (v.Item1 >= 3 || v.Item1 < 0)
             {
-                throw new ArgumentException(CodeData.ExceptionMessage(string.Format("entry point {0} parameter is invalid"), filename, 0, 0));
+                throw new Exception(CodeData.ExceptionMessage(string.Format("entry point {0} parameter is invalid"), filename, 0, 0));
             }
             return v.Item2(new dynamic[] { argument, argument.Length }, new CodeData(0, 0, Filename));
         }

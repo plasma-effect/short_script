@@ -25,7 +25,7 @@ namespace ShortScriptCsharp
             dynamic last = this.last.ValueEval(local, runner);
             dynamic step = this.step.ValueEval(local, runner);
             if (local.ContainsKey(counter))
-                throw new ArgumentException(data.ExceptionMessage(string.Format("valuename {0} has been defined in this scopr", counter)));
+                throw new Exception(data.ExceptionMessage(string.Format("valuename {0} has been defined in this scopr", counter)));
             for (var d = first;d!= last;d+=step)
             {
                 local[counter] = d;

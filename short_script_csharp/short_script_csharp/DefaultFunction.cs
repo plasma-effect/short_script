@@ -25,7 +25,7 @@ namespace ShortScriptCsharp
             }
             catch(Exception)
             {
-                throw new ArgumentException(data.ExceptionMessage("operator+ error(dont use those types)"));
+                throw new Exception(data.ExceptionMessage("operator+ error(dont use those types)"));
             }
             return ret;
         }
@@ -42,7 +42,7 @@ namespace ShortScriptCsharp
             }
             catch (Exception)
             {
-                throw new ArgumentException(data.ExceptionMessage("operator* error(dont use with those types)"));
+                throw new Exception(data.ExceptionMessage("operator* error(dont use with those types)"));
             }
             return ret;
         }
@@ -55,7 +55,7 @@ namespace ShortScriptCsharp
             }
             catch (Exception)
             {
-                throw new ArgumentException(data.ExceptionMessage("operator- error(dont use with those types)"));
+                throw new Exception(data.ExceptionMessage("operator- error(dont use with those types)"));
             }
         }
 
@@ -67,7 +67,7 @@ namespace ShortScriptCsharp
             }
             catch (Exception)
             {
-                throw new ArgumentException(data.ExceptionMessage("operator/ error(dont use with those types)"));
+                throw new Exception(data.ExceptionMessage("operator/ error(dont use with those types)"));
             }
         }
 
@@ -79,7 +79,7 @@ namespace ShortScriptCsharp
             }
             catch (Exception)
             {
-                throw new ArgumentException(data.ExceptionMessage("operator% error(dont use with those types)"));
+                throw new Exception(data.ExceptionMessage("operator% error(dont use with those types)"));
             }
         }
         
@@ -102,7 +102,7 @@ namespace ShortScriptCsharp
             }
             catch (Exception)
             {
-                throw new ArgumentException(data.ExceptionMessage("operator<< error(dont use with those types)"));
+                throw new Exception(data.ExceptionMessage("operator<< error(dont use with those types)"));
             }
         }
 
@@ -114,7 +114,7 @@ namespace ShortScriptCsharp
             }
             catch (Exception)
             {
-                throw new ArgumentException(data.ExceptionMessage("operator>> error(dont use with those types)"));
+                throw new Exception(data.ExceptionMessage("operator>> error(dont use with those types)"));
             }
         }
 
@@ -131,7 +131,7 @@ namespace ShortScriptCsharp
             }
             catch (Exception)
             {
-                throw new ArgumentException(data.ExceptionMessage("operator| error(dont use with those types)"));
+                throw new Exception(data.ExceptionMessage("operator| error(dont use with those types)"));
             }
         }
 
@@ -148,7 +148,7 @@ namespace ShortScriptCsharp
             }
             catch (Exception)
             {
-                throw new ArgumentException(data.ExceptionMessage("operator& error(dont use with those types)"));
+                throw new Exception(data.ExceptionMessage("operator& error(dont use with those types)"));
             }
         }
 
@@ -160,7 +160,7 @@ namespace ShortScriptCsharp
             }
             catch (Exception)
             {
-                throw new ArgumentException(data.ExceptionMessage("operator^ error(dont use with those types)"));
+                throw new Exception(data.ExceptionMessage("operator^ error(dont use with those types)"));
             }
         }
 
@@ -172,7 +172,7 @@ namespace ShortScriptCsharp
             }
             catch (Exception)
             {
-                throw new ArgumentException(data.ExceptionMessage("operator! error(dont use with those types)"));
+                throw new Exception(data.ExceptionMessage("operator! error(dont use with those types)"));
             }
         }
 
@@ -202,7 +202,7 @@ namespace ShortScriptCsharp
             }
             catch (Exception)
             {
-                throw new ArgumentException(data.ExceptionMessage("operator= error(dont use with those types)"));
+                throw new Exception(data.ExceptionMessage("operator= error(dont use with those types)"));
             }
         }
 
@@ -214,7 +214,7 @@ namespace ShortScriptCsharp
             }
             catch (Exception)
             {
-                throw new ArgumentException(data.ExceptionMessage("operator<> error(dont use with those types)"));
+                throw new Exception(data.ExceptionMessage("operator<> error(dont use with those types)"));
             }
         }
 
@@ -226,7 +226,7 @@ namespace ShortScriptCsharp
             }
             catch (Exception)
             {
-                throw new ArgumentException(data.ExceptionMessage("operator< error(dont use with those types)"));
+                throw new Exception(data.ExceptionMessage("operator< error(dont use with those types)"));
             }
         }
 
@@ -238,7 +238,7 @@ namespace ShortScriptCsharp
             }
             catch (Exception)
             {
-                throw new ArgumentException(data.ExceptionMessage("operator<= error(dont use with those types)"));
+                throw new Exception(data.ExceptionMessage("operator<= error(dont use with those types)"));
             }
         }
 
@@ -250,7 +250,7 @@ namespace ShortScriptCsharp
             }
             catch (Exception)
             {
-                throw new ArgumentException(data.ExceptionMessage("operator> error(dont use with those types)"));
+                throw new Exception(data.ExceptionMessage("operator> error(dont use with those types)"));
             }
         }
 
@@ -262,7 +262,7 @@ namespace ShortScriptCsharp
             }
             catch (Exception)
             {
-                throw new ArgumentException(data.ExceptionMessage("operator>= error(dont use with those types)"));
+                throw new Exception(data.ExceptionMessage("operator>= error(dont use with those types)"));
             }
         }
 
@@ -279,7 +279,7 @@ namespace ShortScriptCsharp
             }
             catch (Exception)
             {
-                throw new ArgumentException(data.ExceptionMessage("operator&& error(dont use with those types)"));
+                throw new Exception(data.ExceptionMessage("operator&& error(dont use with those types)"));
             }
         }
 
@@ -296,7 +296,7 @@ namespace ShortScriptCsharp
             }
             catch (Exception)
             {
-                throw new ArgumentException(data.ExceptionMessage("operator|| error(dont use with those types)"));
+                throw new Exception(data.ExceptionMessage("operator|| error(dont use with those types)"));
             }
         }
 
@@ -327,7 +327,7 @@ namespace ShortScriptCsharp
             }
             catch(Exception exp)
             {
-                throw new ArgumentException(data.ExceptionMessage("at error(privided error type)"));
+                throw new Exception(data.ExceptionMessage("at error(privided error type)"));
             }
         }
 
@@ -359,7 +359,7 @@ namespace ShortScriptCsharp
             }
             catch(Exception)
             {
-                throw new ArgumentException(data.ExceptionMessage("invalid argument type"));
+                throw new Exception(data.ExceptionMessage("invalid argument type"));
             }
         }
 
@@ -391,13 +391,15 @@ namespace ShortScriptCsharp
         public static dynamic Import(dynamic[] arg,ScriptRunner runner)
         {
             if (arg[0].GetType() != typeof(string))
-                throw new ArgumentException("import error(invalid argument)");
+                throw new Exception("import error(invalid argument)");
             if (runner.ImportedFilename.Exists(str => str == arg[0]))
                 return null;
             var inner = new ScriptRunner(arg[0], runner.SystemCommand, runner.Functions, runner.LiteralChecker);
-            foreach(var v in inner.Functions)
+            foreach (var v in inner.Functions)
             {
-                runner.Functions[v.Key] = v.Value;
+                if (!runner.Functions.ContainsKey(v.Key))
+                    runner.Functions.Add(v.Key, v.Value);
+
             }
             runner.ImportedFilename.AddRange(inner.ImportedFilename);
             return null;
@@ -406,6 +408,7 @@ namespace ShortScriptCsharp
         public static Dictionary<string, Func<dynamic[], ScriptRunner, dynamic>> GetDefaultCommand()
         {
             var ret = new Dictionary<string, Func<dynamic[], ScriptRunner, dynamic>>();
+            ret.Add("import", Import);
             return ret;
         }
 

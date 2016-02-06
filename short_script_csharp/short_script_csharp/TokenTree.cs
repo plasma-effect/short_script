@@ -67,7 +67,7 @@ namespace ShortScriptCsharp
                     return;
                 }
             }
-            throw new ArgumentException(data.ExceptionMessage("termination of string literal was not found"));
+            throw new Exception(data.ExceptionMessage("termination of string literal was not found"));
         }
     }
 

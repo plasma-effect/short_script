@@ -42,6 +42,7 @@
   <ItemGroup>
     <Compile Include="CodeData.cs" />
     <Compile Include="DefaultFunction.cs" />
+    <Compile Include="Exception.cs" />
     <Compile Include="Expression.cs" />
     <Compile Include="ScriptRunner.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

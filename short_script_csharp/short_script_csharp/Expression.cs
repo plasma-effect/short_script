@@ -22,7 +22,7 @@ namespace ShortScriptCsharp
             dynamic val = 0;
             if (local.TryGetValue(name, out val)) return val;
             if (runner.Global.TryGetValue(name, out val)) return val;
-            throw new ArgumentNullException(data.ExceptionMessage(string.Format("valuename {0} was not found in this scope.", name)));
+            throw new Exception(data.ExceptionMessage(string.Format("valuename {0} was not found in this scope.", name)));
         }
 
         public string ToString(int v)
